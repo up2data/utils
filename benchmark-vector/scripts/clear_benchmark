@@ -1,0 +1,11 @@
+#!/bin/bash
+
+DIR=`dirname $0`
+BASE_DIR=`readlink -f $DIR/..`
+
+DATABASE=${1:?}
+
+echo -e "delete from benchmark_query_profile;\g" | sql -S ${DATABASE} > /dev/null 2>&1
+echo -e "delete from benchmark_io_profile;\g" | sql -S ${DATABASE} > /dev/null 2>&1
+
+rm ${BASE_DIR}/results/* > /dev/null 2>&1

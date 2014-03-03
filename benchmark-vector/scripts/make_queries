@@ -1,0 +1,66 @@
+#!/bin/bash
+
+DIR=`dirname $0`
+BASE_DIR=`readlink -f $DIR/..`
+
+SIZE=${1:?}
+STEP=${2:?}
+
+rm ${BASE_DIR}/queries/compiled/*
+
+for QUERY in {1..22}
+do
+   cp ${BASE_DIR}/queries/templates/${QUERY}.sql ${BASE_DIR}/tpc
+   cd ${BASE_DIR}/tpc
+   ./qgen ${QUERY} > ${BASE_DIR}/queries/compiled/${QUERY}.sql
+   echo -e "
+insert into benchmark_query_profile
+select top 1 ${QUERY}, ${STEP}, session_id, query_id, start_time, execution_time, mem, mem_tot, mem_vm, mem_tot_vm
+from iivwprof_query
+order by query_id desc;
+\g
+
+insert into benchmark_io_profile
+select top 1 ${QUERY}, ${STEP}, session_id, query_id, op_id, "table", columns, async_fetch, async_miss, sync_fetch, sync_miss
+from iivwprof_io
+where query_id in (select query_id from benchmark_query_profile where tpc_query_id = ${QUERY});
+\g
+   " >> ${BASE_DIR}/queries/compiled/${QUERY}.sql
+done
+
+rm ${BASE_DIR}/tpc/*.sql
+
+cat ${BASE_DIR}/queries/compiled/*.sql > ${BASE_DIR}/queries/benchmark.sql
+
+echo "
+select * from benchmark_io_profile
+order by tpc_query_id, step_id;
+\script ${BASE_DIR}/results/iivwprof_io_${SIZE}G.profile
+\g
+
+\script
+
+select * from benchmark_query_profile
+order by tpc_query_id, step_id
+\script ${BASE_DIR}/results/iivwprof_query_${SIZE}G.profile
+\g
+" > ${BASE_DIR}/queries/profile.sql
+
+echo "
+\silent
+\vdelim;
+\trim
+\notitles
+
+select * from benchmark_io_profile
+order by tpc_query_id, step_id;
+\script ${BASE_DIR}/results/iivwprof_io_${SIZE}G.csv
+\g
+
+\script
+
+select * from benchmark_query_profile
+order by tpc_query_id, step_id
+\script ${BASE_DIR}/results/iivwprof_query_${SIZE}G.csv
+\g
+" > ${BASE_DIR}/queries/raw_profile.sql

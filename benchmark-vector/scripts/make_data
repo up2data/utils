@@ -1,0 +1,17 @@
+#!/bin/bash
+
+DIR=`dirname $0`
+BASE_DIR=`readlink -f $DIR/..`
+
+SIZE=${1:?}
+
+rm -r ${BASE_DIR}/data
+mkdir ${BASE_DIR}/data
+
+rm ${BASE_DIR}/tpc/*.tbl > /dev/null 2>&1
+cd ${BASE_DIR}/tpc
+./dbgen -s ${SIZE} > /dev/null 2>&1
+rm /tmp/*.tbl > /dev/null 2>&1
+mv *.tbl ${BASE_DIR}/data/
+
+du -s -h ${BASE_DIR}/data

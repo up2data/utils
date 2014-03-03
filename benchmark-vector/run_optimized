@@ -1,0 +1,34 @@
+#!/bin/bash
+
+DIR=`dirname $0`
+BASE_DIR=`readlink -f ${DIR}`
+
+DATABASE=${1:?}
+SIZE=${2:?}
+STEPS=${3:?}
+
+echo "Benchmark ${SIZE} GB dataset"
+
+echo "Generating dataset"
+${BASE_DIR}/scripts/make_data ${SIZE}
+
+echo "Creating database objects"
+${BASE_DIR}/scripts/make_tables ${DATABASE}
+
+echo "Optimizing database"
+${BASE_DIR}/scripts/make_optimize ${DATABASE}
+
+echo "Clearing previous results"
+${BASE_DIR}/scripts/clear_benchmark ${DATABASE}
+
+echo "Benchmarking..."
+for (( STEP=1; STEP<=${STEPS}; STEP++ ))
+do
+  ${BASE_DIR}/scripts/make_queries ${SIZE} ${STEP}
+  sql -S ${DATABASE} < ${BASE_DIR}/queries/benchmark.sql > /dev/null 2>&1
+done
+
+sql ${DATABASE} < ${BASE_DIR}/queries/profile.sql > /dev/null 2>&1
+sql -S ${DATABASE} < ${BASE_DIR}/queries/raw_profile.sql > /dev/null 2>&1
+
+echo "Benchmark done. Profile data available in ${BASE_DIR}/results"

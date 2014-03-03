@@ -1,0 +1,15 @@
+#!/bin/bash
+
+DIR=`dirname $0`
+BASE_DIR=`readlink -f $DIR/..`
+
+DATABASE=${1:?}
+
+sql -S ${DATABASE} < ${BASE_DIR}/queries/drop.sql > /dev/null 2>&1
+sql -S ${DATABASE} < ${BASE_DIR}/queries/create.sql > /dev/null 2>&1
+
+cp ${BASE_DIR}/queries/load.sql ${BASE_DIR}/data
+
+cd ${BASE_DIR}/data
+sql -S ${DATABASE} < load.sql > /dev/null 2>&1
+rm load.sql
